@@ -1,0 +1,36 @@
+# Environment variables (NEVER commit!)
+.env
+.env.local
+
+# Virtual environment
+venv/
+env/
+ENV/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Database
+chroma_data/
+*.db
+
+# Uploaded files
+uploads/
+
+# IDE & Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-project
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Streamlit
+.streamlit/
