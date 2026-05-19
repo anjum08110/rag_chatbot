@@ -1,12 +1,12 @@
 import os
-from typing import List,Dict,Any
+from typing import List, Dict, Any
 from datetime import datetime
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.document_loader import PyPDFLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 import shutil
 
 class DocumentProcessor:
@@ -133,7 +133,7 @@ class RAGPipeline:
             google_api_key= Your Google Gemini API key
             db_path: Path to Chroma database
         """
-        self.document_processor = DocumentProccesor(
+        self.document_processor = DocumentProcessor(
             chunk_size= 1000,
             chunk_overlap= 200
         )
@@ -143,7 +143,7 @@ class RAGPipeline:
         self.llm = ChatGoogleGenerativeAI(
             model="gemini-pro",
             google_api_key=google_api_key,
-            temparature=0.7,
+            temperature=0.7,
             top_p= 0.9
         )
 

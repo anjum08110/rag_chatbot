@@ -20,7 +20,7 @@ app= FastAPI(
 #Add Cors Middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origin=["*"],
+    allow_origins=["*"],
     allow_credentials = True,
     allow_methods= ["*"],
     allow_headers=["*"]
@@ -51,6 +51,12 @@ class QueryResponse(BaseModel):
     timestamp: str
 
 class HealthResponse(BaseModel):
+    """Health check response"""
+    status: str
+    message: str
+
+
+class StatsResponse(BaseModel):
     """Statistics response"""
     total_messages: int
     uploaded_files: int
@@ -176,7 +182,7 @@ async def get_uploaded_files():
         List of uploaded documents with metadata
     """
     try:
-        files: rag_pipeline.get_uploaded_files()
+        files= rag_pipeline.get_uploaded_files()
         return{
             "status": "success",
             "total_files": len(files),
