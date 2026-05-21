@@ -26,23 +26,22 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-#Get the API key from the .env file
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-if not GOOGLE_API_KEY:
-    raise ValueError("API KEY not found in .env file")
-
 #Create Upload Dir if it doesn't exist
 UPLOAD_DIR="./uploads"
 os.makedirs(UPLOAD_DIR, exist_ok= True)
 
 print("Initializing RAG Pipeline...")
-rag_pipeline= RAGPipeline(google_api_key=GOOGLE_API_KEY)
+rag_pipeline= RAGPipeline()
 print("RAG Pipeline is Ready")
 
 #PYdantics Models
 class QueryRequest(BaseModel):
     """Request model for queries"""
     question: str
+
+class RenameTitleRequest(BaseModel):
+    """Request model for renaming a chat history entry"""
+    title: str
 
 class HealthResponse(BaseModel):
     """Health check response"""
@@ -153,6 +152,24 @@ async def get_chat_history():
             status_code=500,
             details= f"Error retrieving history: {str(e)}"
         )
+
+@app.delete("/chat-history/{index}")
+async def delete_chat_message(index: int):
+    """Delete a specific chat history entry by index"""
+    success = rag_pipeline.delete_chat_message(index)
+    if not success:
+        raise HTTPException(status_code=404, detail="Message not found")
+    return {"status": "success", "message": f"Message {index} deleted"}
+
+@app.patch("/chat-history/{index}/title")
+async def rename_chat_message(index: int, request: RenameTitleRequest):
+    """Rename the title of a specific chat history entry"""
+    if not request.title.strip():
+        raise HTTPException(status_code=400, detail="Title cannot be empty")
+    success = rag_pipeline.rename_chat_message(index, request.title)
+    if not success:
+        raise HTTPException(status_code=404, detail="Message not found")
+    return {"status": "success", "message": f"Message {index} renamed"}
 
 @app.get("/uploaded-files")
 async def get_uploaded_files():

@@ -5,7 +5,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_ollama import ChatOllama
 from langchain_core.prompts import PromptTemplate
 import shutil
 
@@ -124,12 +124,11 @@ class VectorStore:
 class RAGPipeline:
     """Main RAG pipeline: Retrieval + Generation"""
 
-    def __init__(self, google_api_key:str, db_path: str= "./chroma_data"):
+    def __init__(self, db_path: str= "./chroma_data"):
         """
         Initialize the RAG Pipeline
-        
+
         Args:
-            google_api_key= Your Google Gemini API key
             db_path: Path to Chroma database
         """
         self.document_processor = DocumentProcessor(
@@ -139,11 +138,9 @@ class RAGPipeline:
 
         self.vector_store= VectorStore(db_path=db_path)
 
-        self.llm = ChatGoogleGenerativeAI(
-            model="gemini-2.0-flash-lite",
-            google_api_key=google_api_key,
+        self.llm = ChatOllama(
+            model="llama3.2",
             temperature=0.7,
-            top_p= 0.9
         )
 
         #Chat history and file tracking
@@ -255,11 +252,16 @@ class RAGPipeline:
                 for doc in retrieved_docs
             ]
 
+            title = " ".join(question.split()[:5])
+            if len(title) > 40:
+                title = title[:40] + "..."
+
             self.chat_history.append({
                 "question": question,
                 "answer": answer,
                 "sources": sources,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
+                "title": title
             })
 
             print(f"Query processed successfully. Answer type: {type(response.content).__name__}, Answer preview: {str(answer)[:100]}")
@@ -274,8 +276,8 @@ class RAGPipeline:
         except Exception as e:
             err = str(e)
             print(f"Error processing query: {err}")
-            if "RESOURCE_EXHAUSTED" in err or "429" in err:
-                answer = "API quota exceeded. You have hit the free tier limit for Gemini. Please wait a few minutes and try again, or enable billing at https://aistudio.google.com."
+            if "connection" in err.lower() or "refused" in err.lower():
+                answer = "Cannot connect to Ollama. Make sure Ollama is installed and running ('ollama serve')."
             else:
                 answer = f"Error processing query: {err}"
             return {
@@ -287,6 +289,20 @@ class RAGPipeline:
     def get_chat_history(self) -> List[Dict]:
         """Get all chat history"""
         return self.chat_history
+
+    def delete_chat_message(self, index: int) -> bool:
+        """Delete a chat message by index"""
+        if 0 <= index < len(self.chat_history):
+            self.chat_history.pop(index)
+            return True
+        return False
+
+    def rename_chat_message(self, index: int, title: str) -> bool:
+        """Rename a chat message title by index"""
+        if 0 <= index < len(self.chat_history):
+            self.chat_history[index]["title"] = title.strip()
+            return True
+        return False
 
     def get_uploaded_files(self) -> List[Dict]:
         """Get list of uploaded files"""

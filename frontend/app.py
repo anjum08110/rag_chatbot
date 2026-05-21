@@ -109,13 +109,33 @@ def query_rag(question: str) -> Dict:
     
 def get_chat_history():
     """Fetch chat history from backend"""
-    try: 
+    try:
         response = requests.get(f"{BACKEND_URL}/chat-history", timeout=10)
         if response.status_code==200:
             return response.json().get("messages",[])
         return[]
     except:
         return[]
+
+def delete_chat_message(index: int) -> bool:
+    """Delete a chat history entry by index"""
+    try:
+        response = requests.delete(f"{BACKEND_URL}/chat-history/{index}", timeout=10)
+        return response.status_code == 200
+    except:
+        return False
+
+def rename_chat_message(index: int, title: str) -> bool:
+    """Rename a chat history entry title"""
+    try:
+        response = requests.patch(
+            f"{BACKEND_URL}/chat-history/{index}/title",
+            json={"title": title},
+            timeout=10
+        )
+        return response.status_code == 200
+    except:
+        return False
     
 def get_uploaded_files():
     """Fetch list of uploaded files"""
@@ -285,8 +305,30 @@ else:
         history = get_chat_history()
 
         if history:
-            for i, message in enumerate(history, 1):
-                with st.expander(f"Message {i} — {message.get('timestamp', 'Unknown time')}"):
+            for i, message in enumerate(history):
+                title = message.get("title", f"Message {i + 1}")
+                timestamp = message.get("timestamp", "")
+                label = f"{title}  —  {timestamp[:16].replace('T', ' ') if timestamp else ''}"
+
+                with st.expander(label):
+                    # Rename section
+                    rename_col, del_col = st.columns([5, 1])
+                    with rename_col:
+                        new_title = st.text_input(
+                            "Title",
+                            value=title,
+                            key=f"title_input_{i}",
+                            label_visibility="collapsed",
+                            placeholder="Enter a title..."
+                        )
+                    with del_col:
+                        if st.button("Save", key=f"save_{i}", use_container_width=True):
+                            if rename_chat_message(i, new_title):
+                                st.success("Renamed!")
+                                st.rerun()
+                            else:
+                                st.error("Failed to rename.")
+
                     st.markdown("**Question:**")
                     st.write(message["question"])
                     st.markdown("**Answer:**")
@@ -295,36 +337,16 @@ else:
                         st.markdown("**Sources:**")
                         for source in message["sources"]:
                             st.markdown(f"- **{source['source']}** (Page {source.get('page', 'Unknown')})\n\n  {source['content']}")
+
+                    st.markdown("---")
+                    btn_col, _ = st.columns([1, 4])
+                    with btn_col:
+                        if st.button("Delete", key=f"delete_{i}", type="secondary", use_container_width=True):
+                            if delete_chat_message(i):
+                                st.success("Deleted.")
+                                st.rerun()
+                            else:
+                                st.error("Failed to delete.")
         else:
             st.info("No messages yet. Start by uploading a document and asking a question!")
 
-#Footer
-st.markdown("---")
-
-st.subheader("Technologies Used")
-
-col1,col2,col3,col4= st.columns(4)
-
-with col1:
-    st.caption("**Backend**")
-    st.caption("° FastAPI")
-    st.caption("°Uvicorn")
-    st.caption("• Python")
-
-with col2:
-    st.caption("**Frontend**")
-    st.caption("• Streamlit")
-    st.caption("• Requests")
-
-with col3:
-    st.caption("**AI & ML**")
-    st.caption("• LangChain")
-    st.caption("• Google Gemini")
-    st.caption("• HuggingFace")
-
-with col4:
-    st.caption("**Data & Storage**")
-    st.caption("• ChromaDB")
-    st.caption("• PyPDF")
-
-st.markdown("---")
