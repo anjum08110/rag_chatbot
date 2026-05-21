@@ -88,7 +88,6 @@ class VectorStore:
         """
         try:
             self.vector_store.add_documents(chunks)
-            self.vector_store.persist()
             print(f"Added {len(chunks)} documents to vector store")
 
         except Exception as e:
@@ -141,7 +140,7 @@ class RAGPipeline:
         self.vector_store= VectorStore(db_path=db_path)
 
         self.llm = ChatGoogleGenerativeAI(
-            model="gemini-pro",
+            model="gemini-2.0-flash-lite",
             google_api_key=google_api_key,
             temperature=0.7,
             top_p= 0.9
@@ -218,7 +217,7 @@ class RAGPipeline:
 
             retriever= self.vector_store.get_retriever(k=4)
 
-            retrieved_docs= retriever.get_relavent_documents(question)
+            retrieved_docs= retriever.invoke(question)
 
             if not retrieved_docs:
                 return{
@@ -238,7 +237,14 @@ class RAGPipeline:
             )
 
             response=self.llm.invoke(prompt)
-            answer = response.content
+            # content can be a list of blocks in newer SDK versions
+            if isinstance(response.content, list):
+                answer = " ".join(
+                    part.get("text", "") if isinstance(part, dict) else str(part)
+                    for part in response.content
+                ).strip()
+            else:
+                answer = str(response.content)
 
             sources = [
                 {
@@ -256,7 +262,7 @@ class RAGPipeline:
                 "timestamp": datetime.now().isoformat()
             })
 
-            print(f"Query processed successfully")
+            print(f"Query processed successfully. Answer type: {type(response.content).__name__}, Answer preview: {str(answer)[:100]}")
 
             return {
                 "answer": answer,
@@ -266,10 +272,15 @@ class RAGPipeline:
             }
         
         except Exception as e:
-            print(f"Error processing query: {str(e)}")
+            err = str(e)
+            print(f"Error processing query: {err}")
+            if "RESOURCE_EXHAUSTED" in err or "429" in err:
+                answer = "API quota exceeded. You have hit the free tier limit for Gemini. Please wait a few minutes and try again, or enable billing at https://aistudio.google.com."
+            else:
+                answer = f"Error processing query: {err}"
             return {
-                "answer": f"Error processing query: {str(e)}",
-                "sources":[],
+                "answer": answer,
+                "sources": [],
                 "timestamp": datetime.now().isoformat()
             }
         

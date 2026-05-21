@@ -44,12 +44,6 @@ class QueryRequest(BaseModel):
     """Request model for queries"""
     question: str
 
-class QueryResponse(BaseModel):
-    """Response model for queries"""
-    answer: str
-    source: List[dict]
-    timestamp: str
-
 class HealthResponse(BaseModel):
     """Health check response"""
     status: str
@@ -123,34 +117,20 @@ async def upload_document(file: UploadFile = File()):
             details= f"Error uploading file: {str(e)}"
         )
     
-@app.post("/query", response_model=QueryResponse)
+@app.post("/query")
 async def query_rag(request: QueryRequest):
     """Query the RAG pipeline with a question
-    
+
     Args:
         request: QueryRequest with question field
-        
+
     Returns:
         Answer with source citation
     """
-    try:
-        if not request.question.strip():
-            raise HTTPException(
-                status_code=400,
-                details = "Question cannot be empty"
-            )
-        
-        result = rag_pipeline.query(request.question)
+    if not request.question.strip():
+        raise HTTPException(status_code=400, detail="Question cannot be empty")
 
-        return QueryResponse(**result)
-    
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail= f"Error processing query: {str(e)}"
-        )
+    return rag_pipeline.query(request.question)
     
 @app.get("/chat-history")
 async def get_chat_history():
